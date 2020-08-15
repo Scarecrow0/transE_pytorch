@@ -29,3 +29,8 @@ For the knowledges representation, we mainly use the WN11 and WN18 (WordNet) for
 
 The model will be evaluated during training. For validation and LR scheduling, we will randomly take a batch of triples from the validation for evaluations, and use this validation loss for LR scheduling.
 During the fix of epoch nums, will test model on test set. Evaluation result on the test set will be written into ./result/[dataset].txt, such as ./result/WN11.txt. 
+All intermidite result will be plot by tensorboard,
+
+
+# How it realy works
+The main idea of TransE model is 
