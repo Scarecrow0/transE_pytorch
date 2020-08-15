@@ -1,0 +1,8 @@
+test.ipynb
+.ipynb_checkpoints
+model
+*.pyc
+result
+.vscode
+__pycache__
+tfboard
