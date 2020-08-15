@@ -187,6 +187,7 @@ if __name__ == "__main__":
          'nb', str(args.num_batches),
          'm', str(args.margin),
          'f', str(args.filter),
+         str(args.dataset),
          's', str(args.seed), ]) + '_TransE.ckpt'
 
     # ckpt saving dirs
