@@ -135,8 +135,11 @@ def get_raw_batch_all(tripleList, entityTotal):
 # with checking whether false negative samples exist.
 def getBatch_filter_random(tripleList, batchSize, entityTotal, tripleDict):
     oldTripleList = random.sample(tripleList, batchSize)
-    newTripleList = [corrupt_head_filter(triple, entityTotal, tripleDict) if random.random() < 0.5 
-        else corrupt_tail_filter(triple, entityTotal, tripleDict) for triple in oldTripleList]
+    if random.random() < 0.5:
+        newTripleList = [corrupt_head_filter(triple, entityTotal, tripleDict) for triple in oldTripleList]
+    else:
+        newTripleList = [corrupt_tail_filter(triple, entityTotal, tripleDict) for triple in oldTripleList]
+        
     ph, pt ,pr = getThreeElements(oldTripleList)
     nh, nt, nr = getThreeElements(newTripleList)
     return ph, pt, pr, nh, nt, nr

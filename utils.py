@@ -58,7 +58,7 @@ def getAnythingTotal(inPath, fileName):
         for line in fr:
             return int(line)
 
-def loadTriple(inPath, fileName):
+def load_triple(inPath, fileName):
     with open(os.path.join(inPath, fileName), 'r') as fr:
         i = 0
         tripleList = []
@@ -81,7 +81,7 @@ def loadTriple(inPath, fileName):
 
 # Calculate the statistics of datasets
 def calculate_one_or_many(dataset):
-    tripleTotal, tripleList, tripleDict = loadTriple('./datasets/' + dataset, 'triple2id.txt')
+    tripleTotal, tripleList, tripleDict = load_triple('./datasets/' + dataset, 'triple2id.txt')
     # You should sort first before groupby!
     tripleList.sort(key=lambda x: (x.r, x.h, x.t))
     grouped = [(k, list(g)) for k, g in groupby(tripleList, key=getRel)]
@@ -116,7 +116,7 @@ def calculate_one_or_many(dataset):
             many_to_many.append(elem[0])
 
     # Classify test triples according to the type of relation
-    testTotal, testList, testDict = loadTriple('./datasets/' + dataset, 'test2id.txt')
+    testTotal, testList, testDict = load_triple('./datasets/' + dataset, 'test2id.txt')
     testList.sort(key=lambda x: (x.r, x.h, x.t))
     test_grouped = [(k, list(g)) for k, g in groupby(testList, key=getRel)]
 

@@ -28,17 +28,16 @@ class TransEModel(nn.Module):
 
 		self.ent_embeddings = nn.Embedding(self.entity_total, self.embedding_size)
 		self.rel_embeddings = nn.Embedding(self.relation_total, self.embedding_size)
+
+		# initialization
 		nn.init.xavier_uniform_(self.ent_embeddings.weight)
 		nn.init.xavier_uniform_(self.rel_embeddings.weight)
-
-		normalize_entity_emb = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
-		normalize_relation_emb = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
-		self.ent_embeddings.weight.data = normalize_entity_emb
-		self.rel_embeddings.weight.data = normalize_relation_emb
+		self.ent_embeddings.weight.data = F.normalize(self.ent_embeddings.weight.data, p=2, dim=1)
+		self.rel_embeddings.weight.data = F.normalize(self.rel_embeddings.weight.data, p=2, dim=1)
 
 	def forward(self, pos_h, pos_t, pos_r, neg_h, neg_t, neg_r):
 		"""
-		link predicitons
+		link predictions of negative and positive pairs for training
 		"""
 		pos_h_e = self.ent_embeddings(pos_h)
 		pos_t_e = self.ent_embeddings(pos_t)

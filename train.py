@@ -5,7 +5,7 @@ import json
 
 import argparse
 import tqdm
-
+import shutil
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
@@ -151,11 +151,11 @@ if __name__ == "__main__":
     if args.seed != 0:
         torch.manual_seed(args.seed)
 
-    trainTotal, trainList, trainDict = loadTriple('./datasets/' + args.dataset, 'train2id.txt')
-    validTotal, validList, validDict = loadTriple('./datasets/' + args.dataset, 'valid2id.txt')
-    tripleTotal, tripleList, tripleDict = loadTriple('./datasets/' + args.dataset, 'triple2id.txt')
+    train_trp_num, train_trp_list, train_trp_dict = load_triple('datasets/' + args.dataset, 'train2id.txt')
+    valid_trp_num, valid_trp_list, valid_trp_dict = load_triple('datasets/' + args.dataset, 'valid2id.txt')
+    total_triple_num, total_triple_list, total_triple_dict = load_triple('datasets/' + args.dataset, 'triple2id.txt')
 
-    config = init_cfg(args, trainTotal)
+    config = init_cfg(args, train_trp_num)
 
     print(str(config))
 
@@ -181,28 +181,26 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    filename = '_'.join(
-        ['l', str(args.learning_rate),
-         'es', str(args.early_stopping_round),
-         'L', str(args.L1_flag),
+    ckpt_filename = '_'.join(
+        ['L', str(args.L1_flag),
          'em', str(args.embedding_size),
          'nb', str(args.num_batches),
-         'n', str(args.train_times),
          'm', str(args.margin),
          'f', str(args.filter),
-         'mo', str(args.momentum),
-         's', str(args.seed),
-         'op', str(args.optimizer),
-         'lo', str(args.loss_type), ]) + '_TransE.ckpt'
+         's', str(args.seed), ]) + '_TransE.ckpt'
 
     # ckpt saving dirs
     if not os.path.exists(os.path.join('model', args.dataset)):
         os.makedirs(os.path.join('model', args.dataset))
 
-    train_batch_list = init_batch_List(trainList, config.num_batches)
+    train_batch_list = init_batch_List(train_trp_list, config.num_batches)
 
+    tfboard_dir = os.path.join("tfboard", ckpt_filename)
+    if os.path.exists(tfboard_dir):
+        shutil.rmtree(tfboard_dir)
+    os.makedirs(tfboard_dir)
 
-    tf_writer = SummaryWriter(log_dir="tfboard", flush_secs=10)
+    tf_writer = SummaryWriter(log_dir=tfboard_dir, flush_secs=10)
 
     for epoch in range(config.train_times):
         total_loss = FloatTensor([0.0])
@@ -211,7 +209,7 @@ if __name__ == "__main__":
             if config.filter == True:
                 pos_h_batch, pos_t_batch, pos_r_batch,\
                 neg_h_batch, neg_t_batch, neg_r_batch = get_filtered_batch_all(batch_items,
-                                                                            config.entity_total, tripleDict)
+                                                                            config.entity_total, total_triple_dict)
             else:
                 pos_h_batch, pos_t_batch, pos_r_batch,\
                 neg_h_batch, neg_t_batch, neg_r_batch = get_raw_batch_all(batch_items,
@@ -268,11 +266,11 @@ if __name__ == "__main__":
             # randomly sample a batch of triples for validation
             if config.filter == True:
                 pos_h_batch, pos_t_batch, pos_r_batch,\
-                neg_h_batch, neg_t_batch, neg_r_batch = getBatch_filter_random(validList,
-                                                                               config.batch_size, config.entity_total, tripleDict)
+                neg_h_batch, neg_t_batch, neg_r_batch = getBatch_filter_random(valid_trp_list,
+                                                                               config.batch_size, config.entity_total, total_triple_dict)
             else:
                 pos_h_batch, pos_t_batch, pos_r_batch,\
-                neg_h_batch, neg_t_batch, neg_r_batch = getBatch_raw_random(validList,
+                neg_h_batch, neg_t_batch, neg_r_batch = getBatch_raw_random(valid_trp_list,
                                                                             config.batch_size, config.entity_total)
             pos_h_batch = LongTensor(pos_h_batch)
             pos_t_batch = LongTensor(pos_t_batch)
@@ -301,10 +299,9 @@ if __name__ == "__main__":
             print("start eval:")
             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
-            L1_flag = model.L1_flag
-            filter = model.filter
-            hit10, now_meanrank = evaluation_transE(validList, tripleDict, ent_embeddings, rel_embeddings,
-                                                        L1_flag, filter, config.batch_size, num_processes=args.num_processes)
+
+            hit10, now_meanrank = evaluation_transE(valid_trp_list, total_triple_dict, ent_embeddings, rel_embeddings,
+                                                    model.L1_flag, model.filter, config.batch_size, num_processes=args.num_processes)
             print()
 
             tf_writer.add_scalar("val_hit@10", hit10, epoch)
@@ -322,7 +319,7 @@ if __name__ == "__main__":
                 if now_meanrank < best_meanrank * 0.9:
                     meanrank_not_decrease_time = 0
                     best_meanrank = now_meanrank
-                    save_dir = os.path.join('model', args.dataset, filename)
+                    save_dir = os.path.join('model', args.dataset, ckpt_filename)
                     print("save param to: ", save_dir)
                     torch.save(model, save_dir)
                 else:
@@ -338,55 +335,56 @@ if __name__ == "__main__":
                             meanrank_not_decrease_time = 0
 
             elif (epoch) % 30 == 0 or epoch == 0:
-                save_dir = os.path.join('model', args.dataset, filename)
+                save_dir = os.path.join('model', args.dataset, ckpt_filename)
                 print("save param to: ", save_dir)
                 torch.save(model, save_dir)
 
         if epoch % 50 == 0 and epoch != 0:
             # after training, do test eval
-            testTotal, testList, testDict = loadTriple('datasets/' + args.dataset, 'test2id.txt')
-            oneToOneTotal, oneToOneList, oneToOneDict = loadTriple('datasets/' + args.dataset, 'one_to_one_test.txt')
-            oneToManyTotal, oneToManyList, oneToManyDict = loadTriple('datasets/' + args.dataset, 'one_to_many_test.txt')
-            manyToOneTotal, manyToOneList, manyToOneDict = loadTriple('datasets/' + args.dataset, 'many_to_one_test.txt')
-            manyToManyTotal, manyToManyList, manyToManyDict = loadTriple('datasets/' + args.dataset, 'many_to_many_test.txt')
+            testTotal, testList, testDict = load_triple('datasets/' + args.dataset, 'test2id.txt')
+            oneToOneTotal, oneToOneList, oneToOneDict = load_triple('datasets/' + args.dataset, 'one_to_one_test.txt')
+            oneToManyTotal, oneToManyList, oneToManyDict = load_triple('datasets/' + args.dataset, 'one_to_many_test.txt')
+            manyToOneTotal, manyToOneList, manyToOneDict = load_triple('datasets/' + args.dataset, 'many_to_one_test.txt')
+            manyToManyTotal, manyToManyList, manyToManyDict = load_triple('datasets/' + args.dataset, 'many_to_many_test.txt')
 
             ent_embeddings = model.ent_embeddings.weight.data.cpu().numpy()
             rel_embeddings = model.rel_embeddings.weight.data.cpu().numpy()
+            
             L1_flag = model.L1_flag
             filter = model.filter
 
             hit10Test, meanrankTest = evaluation_transE(
-                testList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
+                testList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=0)
 
-            hit10OneToOneHead, meanrankOneToOneHead = evaluation_transE(
-                oneToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
-            hit10OneToManyHead, meanrankOneToManyHead = evaluation_transE(
-                oneToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
-            hit10ManyToOneHead, meanrankManyToOneHead = evaluation_transE(
-                manyToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
-            hit10ManyToManyHead, meanrankManyToManyHead = evaluation_transE(
-                manyToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
+            hit10_121_head, meanrank_121_head = evaluation_transE(
+                oneToOneList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
+            hit10_12m_head, meanrank_12m_head = evaluation_transE(
+                oneToManyList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
+            hit10_m21_head, meanrank_m21_head = evaluation_transE(
+                manyToOneList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
+            hit10_m2m_head, meanrank_m2m_head = evaluation_transE(
+                manyToManyList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=1)
 
-            hit10OneToOneTail, meanrankOneToOneTail = evaluation_transE(
-                oneToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
-            hit10OneToManyTail, meanrankOneToManyTail = evaluation_transE(
-                oneToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
-            hit10ManyToOneTail, meanrankManyToOneTail = evaluation_transE(
-                manyToOneList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
-            hit10ManyToManyTail, meanrankManyToManyTail = evaluation_transE(
-                manyToManyList, tripleDict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
+            hit10_121_tail, meanrank_121_tail = evaluation_transE(
+                oneToOneList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
+            hit10_12m_tail, meanrank_12m_tail = evaluation_transE(
+                oneToManyList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
+            hit10_m21_tail, meanrank_m21_tail = evaluation_transE(
+                manyToOneList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
+            hit10_m2m_tail, meanrank_m2m_tail = evaluation_transE(
+                manyToManyList, total_triple_dict, ent_embeddings, rel_embeddings, L1_flag, filter, head=2)
 
-            writeList = [filename, f"epohc {epoch}", "\n",
+            writeList = [ckpt_filename, f"epohc {epoch}", "\n",
                         "eval type", "hit@10", "mean_rank", "\n",
                         'avg', '%.6f' % hit10Test, '%.6f' % meanrankTest, "\n",
-                        'one_to_one_head', '%.6f' % hit10OneToOneHead, '%.6f' % meanrankOneToOneHead, "\n",
-                        'one_to_many_head', '%.6f' % hit10OneToManyHead, '%.6f' % meanrankOneToManyHead, "\n",
-                        'many_to_one_head', '%.6f' % hit10ManyToOneHead, '%.6f' % meanrankManyToOneHead, "\n",
-                        'many_to_many_head', '%.6f' % hit10ManyToManyHead, '%.6f' % meanrankManyToManyHead, "\n",
-                        'one_to_one_tail', '%.6f' % hit10OneToOneTail, '%.6f' % meanrankOneToOneTail, "\n",
-                        'one_to_many_tail', '%.6f' % hit10OneToManyTail, '%.6f' % meanrankOneToManyTail, "\n",
-                        'many_to_one_tail', '%.6f' % hit10ManyToOneTail, '%.6f' % meanrankManyToOneTail, "\n",
-                        'many_to_many_tail', '%.6f' % hit10ManyToManyTail, '%.6f' % meanrankManyToManyTail, "\n",]
+                        'one_to_one_head', '%.6f' % hit10_121_head, '%.6f' % meanrank_121_head, "\n",
+                        'one_to_many_head', '%.6f' % hit10_12m_head, '%.6f' % meanrank_12m_head, "\n",
+                        'many_to_one_head', '%.6f' % hit10_m21_head, '%.6f' % meanrank_m21_head, "\n",
+                        'many_to_many_head', '%.6f' % hit10_m2m_head, '%.6f' % meanrank_m2m_head, "\n",
+                        'one_to_one_tail', '%.6f' % hit10_121_tail, '%.6f' % meanrank_121_tail, "\n",
+                        'one_to_many_tail', '%.6f' % hit10_12m_tail, '%.6f' % meanrank_12m_tail, "\n",
+                        'many_to_one_tail', '%.6f' % hit10_m21_tail, '%.6f' % meanrank_m21_tail, "\n",
+                        'many_to_many_tail', '%.6f' % hit10_m2m_tail, '%.6f' % meanrank_m2m_tail, "\n",]
 
             print('\t'.join(writeList) + '\n')
 
