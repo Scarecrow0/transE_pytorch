@@ -116,12 +116,14 @@ The embedding weight is update by the SGD, according to the gradient of $L$ rela
 
 ## Inference
 During the inference phrase, the goal is to predict the head and entities of incomplete relation triplets.
-For given head/tail entities and relationship, we can embedding the given symbols, and calculate the embedding of missing symbols' embedding vector $\hat{t}$ by the translation constraint introduces in learning section.
+
+As shown in figure, for given head/tail entities and relationship, we can embedding the given symbols, and calculate the embedding of missing symbols' embedding vector $\hat{t}$ by the translation constraint introduces in learning section.
 $$
 \mathbf{\hat{t}} = \mathbf{h} + \mathbf{r} \\ 
 $$
 Then we can mapping the embedding vector $\hat{t}$ to its symbol id by compare the nearest neighbors according to the learned embedding vector with the same distance function in learning phrase.
 In this way, we can get a set of possible missing entities class with a distance value. 
 
+![transE](imgs/inference.png)
 
 
