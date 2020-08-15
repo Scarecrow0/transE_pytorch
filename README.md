@@ -1,5 +1,9 @@
-# TransE in PyTorch
+# TransE implementation 
 
+### team: 
+52289120	张松阳	40822147	颜世鹏	2019233160	李荣颉
+
+--------------------------
 ## Introduction
 Implementation of the TransE model for the knowledge graph representation.
 
