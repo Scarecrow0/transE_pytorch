@@ -1,7 +1,5 @@
 # TransE implementation 
 
-### team: 
-52289120	张松阳	40822147	颜世鹏	2019233160	李荣颉
 
 --------------------------
 ## Introduction
@@ -127,4 +125,4 @@ In this way, we can get a set of possible missing entities class with a distance
 ![transE](imgs/inference.png)
 
 # Acknowledge
-The code is partially borrowed from the https://github.com/jimmywangheng/knowledge_representation_pytorch/ . (data preprocess, evaluation).  Thanks for him good implementation.
+The code is partially borrowed from the https://github.com/jimmywangheng/knowledge_representation_pytorch/ . (data preprocess, evaluation).  Thanks for his nice  implementation.
